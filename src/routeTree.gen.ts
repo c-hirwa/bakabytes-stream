@@ -9,12 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as FavoritesRouteImport } from './routes/favorites'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnimeIdRouteImport } from './routes/anime.$id'
 import { Route as WatchAnimeIdEpisodeIndexRouteImport } from './routes/watch.$animeId.$episodeIndex'
-import { Route as FavoritesRouteImport } from './routes/favorites'
 
+const FavoritesRoute = FavoritesRouteImport.update({
+  id: '/favorites',
+  path: '/favorites',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BrowseRoute = BrowseRouteImport.update({
   id: '/browse',
   path: '/browse',
@@ -30,11 +35,6 @@ const AnimeIdRoute = AnimeIdRouteImport.update({
   path: '/anime/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FavoritesRoute = FavoritesRouteImport.update({
-  id: '/favorites',
-  path: '/favorites',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const WatchAnimeIdEpisodeIndexRoute =
   WatchAnimeIdEpisodeIndexRouteImport.update({
     id: '/watch/$animeId/$episodeIndex',
@@ -45,34 +45,45 @@ const WatchAnimeIdEpisodeIndexRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/browse': typeof BrowseRoute
-  '/anime/$id': typeof AnimeIdRoute
   '/favorites': typeof FavoritesRoute
+  '/anime/$id': typeof AnimeIdRoute
   '/watch/$animeId/$episodeIndex': typeof WatchAnimeIdEpisodeIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/browse': typeof BrowseRoute
-  '/anime/$id': typeof AnimeIdRoute
   '/favorites': typeof FavoritesRoute
+  '/anime/$id': typeof AnimeIdRoute
   '/watch/$animeId/$episodeIndex': typeof WatchAnimeIdEpisodeIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/browse': typeof BrowseRoute
-  '/anime/$id': typeof AnimeIdRoute
   '/favorites': typeof FavoritesRoute
+  '/anime/$id': typeof AnimeIdRoute
   '/watch/$animeId/$episodeIndex': typeof WatchAnimeIdEpisodeIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/browse' | '/anime/$id' | '/watch/$animeId/$episodeIndex'
+  fullPaths:
+    | '/'
+    | '/browse'
+    | '/favorites'
+    | '/anime/$id'
+    | '/watch/$animeId/$episodeIndex'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/browse' | '/anime/$id' | '/watch/$animeId/$episodeIndex'
+  to:
+    | '/'
+    | '/browse'
+    | '/favorites'
+    | '/anime/$id'
+    | '/watch/$animeId/$episodeIndex'
   id:
     | '__root__'
     | '/'
     | '/browse'
+    | '/favorites'
     | '/anime/$id'
     | '/watch/$animeId/$episodeIndex'
   fileRoutesById: FileRoutesById
@@ -80,12 +91,20 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BrowseRoute: typeof BrowseRoute
+  FavoritesRoute: typeof FavoritesRoute
   AnimeIdRoute: typeof AnimeIdRoute
   WatchAnimeIdEpisodeIndexRoute: typeof WatchAnimeIdEpisodeIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/favorites': {
+      id: '/favorites'
+      path: '/favorites'
+      fullPath: '/favorites'
+      preLoaderRoute: typeof FavoritesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/browse': {
       id: '/browse'
       path: '/browse'
@@ -120,10 +139,20 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BrowseRoute: BrowseRoute,
-  AnimeIdRoute: AnimeIdRoute,
   FavoritesRoute: FavoritesRoute,
+  AnimeIdRoute: AnimeIdRoute,
   WatchAnimeIdEpisodeIndexRoute: WatchAnimeIdEpisodeIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
