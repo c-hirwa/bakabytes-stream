@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { Search, Menu, X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { SearchOverlay } from "./SearchOverlay";
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -11,7 +14,11 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const links = ["Home", "Browse", "My List"];
+  const links: { label: string; to: string }[] = [
+    { label: "Home", to: "/" },
+    { label: "Browse", to: "/browse" },
+    { label: "My List", to: "/browse" },
+  ];
 
   return (
     <header
@@ -29,13 +36,15 @@ export function Navbar() {
 
         <ul className="hidden md:flex items-center gap-8">
           {links.map((l) => (
-            <li key={l}>
-              <a
-                href="#"
+            <li key={l.label}>
+              <Link
+                to={l.to}
                 className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                activeProps={{ className: "text-foreground" }}
+                activeOptions={{ exact: l.to === "/" }}
               >
-                {l}
-              </a>
+                {l.label}
+              </Link>
             </li>
           ))}
         </ul>
@@ -43,6 +52,7 @@ export function Navbar() {
         <div className="flex items-center gap-4">
           <button
             aria-label="Search"
+            onClick={() => setSearchOpen(true)}
             className="text-muted-foreground transition-colors hover:text-foreground"
           >
             <Search className="h-5 w-5" />
@@ -64,10 +74,14 @@ export function Navbar() {
         <div className="md:hidden border-t border-border bg-background/95 backdrop-blur-md">
           <ul className="flex flex-col p-4 gap-2">
             {links.map((l) => (
-              <li key={l}>
-                <a href="#" className="block py-2 text-sm font-medium text-foreground">
-                  {l}
-                </a>
+              <li key={l.label}>
+                <Link
+                  to={l.to}
+                  onClick={() => setOpen(false)}
+                  className="block py-2 text-sm font-medium text-foreground"
+                >
+                  {l.label}
+                </Link>
               </li>
             ))}
             <li>
@@ -78,6 +92,7 @@ export function Navbar() {
           </ul>
         </div>
       )}
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   );
 }
