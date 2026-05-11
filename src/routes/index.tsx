@@ -1,9 +1,11 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Navbar } from "@/components/Navbar";
 import { Hero } from "@/components/Hero";
 import { AnimeRow } from "@/components/AnimeRow";
 import { Footer } from "@/components/Footer";
 import type { Anime } from "@/components/AnimeCard";
+import { getTrendingAnime, getPopularAnime, type AnimeMedia } from "@/lib/anilist";
 
 import a1 from "@/assets/anime-1.jpg";
 import a2 from "@/assets/anime-2.jpg";
@@ -51,6 +53,48 @@ const popular: Anime[] = [
 ];
 
 function Index() {
+  const [trendingAnime, setTrendingAnime] = useState<AnimeMedia[]>([]);
+  const [popularAnime, setPopularAnime] = useState<AnimeMedia[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const [t, p] = await Promise.all([getTrendingAnime(), getPopularAnime()]);
+        if (cancelled) return;
+        setTrendingAnime(t);
+        setPopularAnime(p);
+        console.log("Trending anime:", t);
+        console.log("Popular anime:", p);
+      } catch (err) {
+        console.error("Failed to fetch anime:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <Navbar />
+        <div className="flex min-h-screen items-center justify-center">
+          <p className="text-lg text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Suppress unused warnings until UI is wired to API data
+  void trendingAnime;
+  void popularAnime;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
