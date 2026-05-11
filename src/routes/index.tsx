@@ -4,6 +4,7 @@ import { Navbar } from "@/components/Navbar";
 import { Hero } from "@/components/Hero";
 import { AnimeRow } from "@/components/AnimeRow";
 import { Footer } from "@/components/Footer";
+import { AnimeRowSkeleton, HeroSkeleton } from "@/components/Skeletons";
 import { getTrendingAnime, getPopularAnime, type AnimeMedia } from "@/lib/anilist";
 
 export const Route = createFileRoute("/")({
@@ -46,25 +47,25 @@ function Index() {
     };
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background text-foreground">
-        <Navbar />
-        <div className="flex min-h-screen items-center justify-center">
-          <p className="text-lg text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const featured = trendingAnime.find((a) => a.bannerImage) ?? trendingAnime[0];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
       <main>
-        <Hero />
+        {loading ? <HeroSkeleton /> : <Hero featured={featured} />}
         <div className="-mt-20 relative z-10">
-          <AnimeRow title="Trending Now" items={trendingAnime} />
-          <AnimeRow title="Popular This Season" items={popularAnime} />
+          {loading ? (
+            <>
+              <AnimeRowSkeleton title="Trending Now" />
+              <AnimeRowSkeleton title="Popular This Season" />
+            </>
+          ) : (
+            <>
+              <AnimeRow title="Trending Now" items={trendingAnime} />
+              <AnimeRow title="Popular This Season" items={popularAnime} />
+            </>
+          )}
         </div>
       </main>
       <Footer />

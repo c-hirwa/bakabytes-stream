@@ -1,4 +1,5 @@
 import { Star } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import type { AnimeMedia } from "@/lib/anilist";
 
 export function AnimeCard({ anime }: { anime: AnimeMedia }) {
@@ -7,7 +8,11 @@ export function AnimeCard({ anime }: { anime: AnimeMedia }) {
   const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : "N/A";
 
   return (
-    <div className="group relative w-[180px] sm:w-[200px] flex-shrink-0 cursor-pointer transition-transform duration-300 hover:scale-105 hover:z-10">
+    <Link
+      to="/anime/$id"
+      params={{ id: String(anime.id) }}
+      className="group relative w-[180px] sm:w-[200px] flex-shrink-0 cursor-pointer transition-transform duration-300 hover:scale-105 hover:z-10"
+    >
       <div className="relative aspect-[2/3] overflow-hidden rounded-md bg-card">
         <img
           src={cover}
@@ -43,6 +48,6 @@ export function AnimeCard({ anime }: { anime: AnimeMedia }) {
           )}
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
