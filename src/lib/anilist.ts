@@ -23,6 +23,7 @@ export interface AnimeMedia {
   status: string;
   season: string | null;
   seasonYear: number | null;
+  format?: string | null;
 }
 
 export interface AnimeStudio {
@@ -54,6 +55,18 @@ export interface AnimeRecommendation {
     coverImage: { large: string };
     averageScore: number;
   } | null;
+}
+
+export interface AnimePageInfo {
+  total: number;
+  currentPage: number;
+  lastPage: number;
+  hasNextPage: boolean;
+}
+
+export interface AnimePageResult {
+  items: AnimeMedia[];
+  pageInfo: AnimePageInfo;
 }
 
 export interface AnimeMediaDetail extends AnimeMedia {
@@ -153,6 +166,50 @@ export async function getSeasonalAnime(): Promise<AnimeMedia[]> {
   return data.Page.media;
 }
 
+async function getAnimePage({
+  search,
+  genre,
+  page = 1,
+  perPage = 24,
+  sort = "POPULARITY_DESC",
+  format,
+  status,
+}: {
+  search?: string | null;
+  genre?: string | null;
+  page?: number;
+  perPage?: number;
+  sort?: string;
+  format?: string | null;
+  status?: string | null;
+}): Promise<AnimePageResult> {
+  const query = `
+    query ($search: String, $genre: String, $page: Int, $perPage: Int, $sort: [MediaSort], $format: MediaFormat, $status: MediaStatus) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo { total currentPage lastPage hasNextPage }
+        media(type: ANIME, search: $search, genre: $genre, sort: $sort, format: $format, status: $status) {
+          ${MEDIA_FIELDS}
+        }
+      }
+    }
+  `;
+  const variables: Record<string, unknown> = {
+    page,
+    perPage,
+    sort: [sort],
+  };
+  if (search) variables.search = search;
+  if (genre) variables.genre = genre;
+  if (format) variables.format = format;
+  if (status) variables.status = status;
+
+  const data = await anilistFetch<{ Page: { pageInfo: AnimePageInfo; media: AnimeMedia[] } }>(query, variables);
+  return {
+    items: data.Page.media,
+    pageInfo: data.Page.pageInfo,
+  };
+}
+
 export async function searchAnime(searchQuery: string): Promise<AnimeMedia[]> {
   const query = `
     query ($search: String) {
@@ -191,6 +248,7 @@ export async function getAnimeById(id: number): Promise<AnimeMediaDetail> {
         status
         season
         seasonYear
+        format
         duration
         studios { nodes { name isAnimationStudio } }
         characters(sort: ROLE, perPage: 6) {
@@ -221,6 +279,42 @@ export async function getAnimeById(id: number): Promise<AnimeMediaDetail> {
   `;
   const data = await anilistFetch<{ Media: AnimeMediaDetail }>(query, { id });
   return data.Media;
+}
+
+export async function searchAnimePage(
+  searchQuery: string,
+  page = 1,
+  perPage = 24,
+  sort = "POPULARITY_DESC",
+  format?: string,
+  status?: string,
+): Promise<AnimePageResult> {
+  return getAnimePage({
+    search: searchQuery || undefined,
+    page,
+    perPage,
+    sort,
+    format: format || undefined,
+    status: status || undefined,
+  });
+}
+
+export async function getAnimeByGenrePage(
+  genre: string,
+  page = 1,
+  perPage = 24,
+  sort = "POPULARITY_DESC",
+  format?: string,
+  status?: string,
+): Promise<AnimePageResult> {
+  return getAnimePage({
+    genre,
+    page,
+    perPage,
+    sort,
+    format: format || undefined,
+    status: status || undefined,
+  });
 }
 
 export async function getAnimeByGenre(genre: string): Promise<AnimeMedia[]> {

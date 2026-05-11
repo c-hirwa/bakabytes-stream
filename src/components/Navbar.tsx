@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search, Menu, X } from "lucide-react";
+import { Search, Menu, X, Heart } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { SearchOverlay } from "./SearchOverlay";
 
@@ -7,6 +7,7 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [favoritesCount, setFavoritesCount] = useState(0);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -14,10 +15,22 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  useEffect(() => {
+    const updateCount = () => {
+      const raw = window.localStorage.getItem("favorites");
+      const parsed = raw ? JSON.parse(raw) : [];
+      setFavoritesCount(Array.isArray(parsed) ? parsed.length : 0);
+    };
+    updateCount();
+    window.addEventListener("storage", updateCount);
+    return () => window.removeEventListener("storage", updateCount);
+  }, []);
+
   const links: { label: string; to: string }[] = [
     { label: "Home", to: "/" },
     { label: "Browse", to: "/browse" },
-    { label: "My List", to: "/browse" },
+    { label: "Movies", to: "/browse" },
+    { label: "This Season", to: "/browse" },
   ];
 
   return (
@@ -29,21 +42,21 @@ export function Navbar() {
       <nav className="mx-auto flex h-16 items-center justify-between px-4 md:px-12">
         <div className="flex items-center gap-2">
           <span className="text-2xl font-black tracking-tight">
-            <span className="text-primary">Baka</span>
-            <span className="text-foreground">Bytes</span>
+            <span className="text-primary">Ani</span>
+            <span className="text-foreground">Stream</span>
           </span>
         </div>
 
         <ul className="hidden md:flex items-center gap-8">
-          {links.map((l) => (
-            <li key={l.label}>
+          {links.map((link) => (
+            <li key={link.label}>
               <Link
-                to={l.to}
+                to={link.to}
                 className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                 activeProps={{ className: "text-foreground" }}
-                activeOptions={{ exact: l.to === "/" }}
+                activeOptions={{ exact: link.to === "/" }}
               >
-                {l.label}
+                {link.label}
               </Link>
             </li>
           ))}
@@ -57,9 +70,17 @@ export function Navbar() {
           >
             <Search className="h-5 w-5" />
           </button>
-          <button className="hidden md:inline-flex rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30">
-            Login
-          </button>
+          <Link
+            to="/favorites"
+            className="relative inline-flex items-center rounded-full border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:border-primary"
+          >
+            <Heart className="h-4 w-4 text-primary" />
+            {favoritesCount > 0 && (
+              <span className="absolute -right-2 -top-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-white">
+                {favoritesCount}
+              </span>
+            )}
+          </Link>
           <button
             onClick={() => setOpen(!open)}
             className="md:hidden text-foreground"
@@ -73,21 +94,25 @@ export function Navbar() {
       {open && (
         <div className="md:hidden border-t border-border bg-background/95 backdrop-blur-md">
           <ul className="flex flex-col p-4 gap-2">
-            {links.map((l) => (
-              <li key={l.label}>
+            {links.map((link) => (
+              <li key={link.label}>
                 <Link
-                  to={l.to}
+                  to={link.to}
                   onClick={() => setOpen(false)}
-                  className="block py-2 text-sm font-medium text-foreground"
+                  className="block rounded-3xl bg-card px-4 py-3 text-sm font-medium text-foreground transition hover:bg-muted"
                 >
-                  {l.label}
+                  {link.label}
                 </Link>
               </li>
             ))}
             <li>
-              <button className="mt-2 w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
-                Login
-              </button>
+              <Link
+                to="/favorites"
+                onClick={() => setOpen(false)}
+                className="block rounded-3xl bg-card px-4 py-3 text-sm font-medium text-foreground transition hover:bg-muted"
+              >
+                Favorites
+              </Link>
             </li>
           </ul>
         </div>
