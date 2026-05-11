@@ -1,8 +1,9 @@
 import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { AnimeCard, type Anime } from "./AnimeCard";
+import { AnimeCard } from "./AnimeCard";
+import type { AnimeMedia } from "@/lib/anilist";
 
-export function AnimeRow({ title, items }: { title: string; items: Anime[] }) {
+export function AnimeRow({ title, items }: { title: string; items: AnimeMedia[] }) {
   const ref = useRef<HTMLDivElement>(null);
 
   const scroll = (dir: "left" | "right") => {
@@ -30,7 +31,7 @@ export function AnimeRow({ title, items }: { title: string; items: Anime[] }) {
           className="flex gap-4 overflow-x-auto scroll-smooth px-4 md:px-12 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {items.map((anime) => (
-            <AnimeCard key={anime.title} anime={anime} />
+            <AnimeCard key={anime.id} anime={anime} />
           ))}
         </div>
         <button
