@@ -1,12 +1,30 @@
 import { Play, Plus, Info } from "lucide-react";
 import heroImg from "@/assets/hero-anime.jpg";
+import type { AnimeMedia } from "@/lib/anilist";
 
-export function Hero() {
+function stripHtml(html: string | null | undefined): string {
+  if (!html) return "";
+  return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+}
+
+export function Hero({ featured }: { featured?: AnimeMedia }) {
+  const bg = featured?.bannerImage ?? heroImg;
+  const title = featured
+    ? featured.title.english ?? featured.title.romaji
+    : "Crimson Blade";
+  const description = featured
+    ? stripHtml(featured.description) ||
+      "An unforgettable anime experience awaits."
+    : "In a neon-soaked metropolis ruled by syndicates, a lone swordsman wielding a blade forged from starlight hunts the demons of his past.";
+  const score = featured?.averageScore ? (featured.averageScore / 10).toFixed(1) : "9.4";
+  const year = featured?.seasonYear ?? 2026;
+  const episodes = featured?.episodes ?? 24;
+
   return (
     <section className="relative h-[85vh] min-h-[600px] w-full overflow-hidden">
       <img
-        src={heroImg}
-        alt="Crimson Blade — Featured anime"
+        src={bg}
+        alt={title}
         width={1920}
         height={1024}
         className="absolute inset-0 h-full w-full object-cover"
@@ -20,10 +38,10 @@ export function Hero() {
             Featured Series
           </span>
           <h1 className="mt-4 text-4xl md:text-7xl font-black leading-[0.9] tracking-tight text-foreground">
-            Crimson <span className="text-primary">Blade</span>
+            {title}
           </h1>
-          <p className="mt-4 max-w-xl text-base md:text-lg text-muted-foreground leading-relaxed">
-            In a neon-soaked metropolis ruled by syndicates, a lone swordsman wielding a blade forged from starlight hunts the demons of his past. A breathtaking cyberpunk saga of vengeance, honor, and rebirth.
+          <p className="mt-4 max-w-xl text-base md:text-lg text-muted-foreground leading-relaxed line-clamp-4">
+            {description}
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-base font-bold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/40">
@@ -37,10 +55,10 @@ export function Hero() {
             </button>
           </div>
           <div className="mt-6 flex items-center gap-4 text-sm text-muted-foreground">
-            <span className="text-primary font-bold">★ 9.4</span>
-            <span>2026</span>
+            <span className="text-primary font-bold">★ {score}</span>
+            <span>{year}</span>
             <span className="rounded border border-border px-2 py-0.5 text-xs">TV-MA</span>
-            <span>24 Episodes</span>
+            <span>{episodes} Episodes</span>
           </div>
         </div>
       </div>
