@@ -72,14 +72,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "BakaBytes" },
+      { name: "description", content: "BakaBytes is a dark-themed anime streaming website for discovering and watching anime." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "BakaBytes" },
+      { property: "og:description", content: "BakaBytes is a dark-themed anime streaming website for discovering and watching anime." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "BakaBytes" },
+      { name: "twitter:description", content: "BakaBytes is a dark-themed anime streaming website for discovering and watching anime." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/07d37fb0-685a-438f-8573-0e8a0d69f126/id-preview-a94659dc--5f89cde6-1b45-4713-88d1-6bf1193eeb21.lovable.app-1778580869753.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/07d37fb0-685a-438f-8573-0e8a0d69f126/id-preview-a94659dc--5f89cde6-1b45-4713-88d1-6bf1193eeb21.lovable.app-1778580869753.png" },
     ],
     links: [
       {
