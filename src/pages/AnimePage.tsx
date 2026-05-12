@@ -14,7 +14,7 @@ function stripHtml(html: string | null) {
 }
 
 export function AnimePage() {
-  const { id } = useParams();
+  const { id } = useParams({ strict: false }) as { id: string };
   const [anime, setAnime] = useState<AnimeMediaDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
