@@ -79,7 +79,7 @@ export async function searchConsumeat(animeName: string): Promise<ConsumetSearch
   const encoded = encodeURIComponent(animeName.trim());
   const payload = await consumetFetch<any>(`/anime/gogoanime/${encoded}`);
   const results = Array.isArray(payload) ? payload : payload.results ?? payload.data ?? [];
-  return results.map(normalizeSearchResult).filter((item) => item.id && item.title);
+  return results.map(normalizeSearchResult).filter((item: ConsumetSearchResult) => item.id && item.title);
 }
 
 export async function getAnimeInfo(animeId: string): Promise<ConsumetAnimeInfo> {
