@@ -45,6 +45,7 @@ export function VideoPlayer({
   const [error, setError] = useState<string | null>(null);
   const [selectedQuality, setSelectedQuality] = useState("default");
   const [retryKey, setRetryKey] = useState(0);
+  const [useProxy, setUseProxy] = useState(false);
 
   const savedTimeKey = `anime_progress_${animeId}_${episodeNumber}`;
 
@@ -56,6 +57,7 @@ export function VideoPlayer({
 
   useEffect(() => {
     setSelectedQuality(bestQuality);
+    setUseProxy(false);
   }, [bestQuality]);
 
   const source = useMemo(() => {
@@ -79,6 +81,9 @@ export function VideoPlayer({
       return;
     }
 
+    const playbackUrl =
+      useProxy && source.isM3U8 ? `/api/hls?url=${encodeURIComponent(source.url)}` : source.url;
+
     // Cleanup any previous HLS instance / source
     if (hlsRef.current) {
       hlsRef.current.destroy();
@@ -88,7 +93,7 @@ export function VideoPlayer({
     video.load();
 
     const attachNative = () => {
-      video.src = source.url;
+      video.src = playbackUrl;
       video.crossOrigin = "anonymous";
       video.load();
       const handleLoaded = () => {
@@ -107,7 +112,7 @@ export function VideoPlayer({
         lowLatencyMode: true,
       });
       hlsRef.current = hls;
-      hls.loadSource(source.url);
+      hls.loadSource(playbackUrl);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         if (startTime > 0) video.currentTime = Math.min(startTime, video.duration || startTime);
@@ -117,6 +122,12 @@ export function VideoPlayer({
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (!data) return;
         if (data.fatal) {
+          // If direct playback fails, retry through our server proxy once.
+          if (!useProxy && source.isM3U8) {
+            setUseProxy(true);
+            setRetryKey((value) => value + 1);
+            return;
+          }
           // Try standard recovery strategies before surfacing the error
           if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
             try {
@@ -149,7 +160,7 @@ export function VideoPlayer({
         hlsRef.current = null;
       }
     };
-  }, [source, retryKey, savedTimeKey]);
+  }, [source, retryKey, savedTimeKey, useProxy]);
 
   useEffect(() => {
     const video = videoRef.current;

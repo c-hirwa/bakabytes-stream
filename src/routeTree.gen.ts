@@ -13,6 +13,7 @@ import { Route as FavoritesRouteImport } from './routes/favorites'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnimeIdRouteImport } from './routes/anime.$id'
+import { Route as WatchAnimeIdEpisodeNumberRouteImport } from './routes/watch.$animeId.$episodeNumber'
 import { Route as WatchAnimeIdEpisodeIndexRouteImport } from './routes/watch.$animeId.$episodeIndex'
 
 const FavoritesRoute = FavoritesRouteImport.update({
@@ -35,6 +36,12 @@ const AnimeIdRoute = AnimeIdRouteImport.update({
   path: '/anime/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WatchAnimeIdEpisodeNumberRoute =
+  WatchAnimeIdEpisodeNumberRouteImport.update({
+    id: '/watch/$animeId/$episodeNumber',
+    path: '/watch/$animeId/$episodeNumber',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const WatchAnimeIdEpisodeIndexRoute =
   WatchAnimeIdEpisodeIndexRouteImport.update({
     id: '/watch/$animeId/$episodeIndex',
@@ -48,6 +55,7 @@ export interface FileRoutesByFullPath {
   '/favorites': typeof FavoritesRoute
   '/anime/$id': typeof AnimeIdRoute
   '/watch/$animeId/$episodeIndex': typeof WatchAnimeIdEpisodeIndexRoute
+  '/watch/$animeId/$episodeNumber': typeof WatchAnimeIdEpisodeNumberRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -55,6 +63,7 @@ export interface FileRoutesByTo {
   '/favorites': typeof FavoritesRoute
   '/anime/$id': typeof AnimeIdRoute
   '/watch/$animeId/$episodeIndex': typeof WatchAnimeIdEpisodeIndexRoute
+  '/watch/$animeId/$episodeNumber': typeof WatchAnimeIdEpisodeNumberRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -63,6 +72,7 @@ export interface FileRoutesById {
   '/favorites': typeof FavoritesRoute
   '/anime/$id': typeof AnimeIdRoute
   '/watch/$animeId/$episodeIndex': typeof WatchAnimeIdEpisodeIndexRoute
+  '/watch/$animeId/$episodeNumber': typeof WatchAnimeIdEpisodeNumberRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -72,6 +82,7 @@ export interface FileRouteTypes {
     | '/favorites'
     | '/anime/$id'
     | '/watch/$animeId/$episodeIndex'
+    | '/watch/$animeId/$episodeNumber'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -79,6 +90,7 @@ export interface FileRouteTypes {
     | '/favorites'
     | '/anime/$id'
     | '/watch/$animeId/$episodeIndex'
+    | '/watch/$animeId/$episodeNumber'
   id:
     | '__root__'
     | '/'
@@ -86,6 +98,7 @@ export interface FileRouteTypes {
     | '/favorites'
     | '/anime/$id'
     | '/watch/$animeId/$episodeIndex'
+    | '/watch/$animeId/$episodeNumber'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -94,6 +107,7 @@ export interface RootRouteChildren {
   FavoritesRoute: typeof FavoritesRoute
   AnimeIdRoute: typeof AnimeIdRoute
   WatchAnimeIdEpisodeIndexRoute: typeof WatchAnimeIdEpisodeIndexRoute
+  WatchAnimeIdEpisodeNumberRoute: typeof WatchAnimeIdEpisodeNumberRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -126,6 +140,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AnimeIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/watch/$animeId/$episodeNumber': {
+      id: '/watch/$animeId/$episodeNumber'
+      path: '/watch/$animeId/$episodeNumber'
+      fullPath: '/watch/$animeId/$episodeNumber'
+      preLoaderRoute: typeof WatchAnimeIdEpisodeNumberRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/watch/$animeId/$episodeIndex': {
       id: '/watch/$animeId/$episodeIndex'
       path: '/watch/$animeId/$episodeIndex'
@@ -142,6 +163,7 @@ const rootRouteChildren: RootRouteChildren = {
   FavoritesRoute: FavoritesRoute,
   AnimeIdRoute: AnimeIdRoute,
   WatchAnimeIdEpisodeIndexRoute: WatchAnimeIdEpisodeIndexRoute,
+  WatchAnimeIdEpisodeNumberRoute: WatchAnimeIdEpisodeNumberRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

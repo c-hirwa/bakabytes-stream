@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, Movie } from "lucide-react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { getAnimeById, type AnimeMediaDetail } from "@/lib/anilist";
-import { searchConsumeat, getAnimeInfo, getEpisodeSources, type ConsumetAnimeInfo, type ConsumetSource, type ConsumetSearchResult } from "@/lib/consumet";
+import { getAnilistEpisodeSources, getAnilistMetaInfo, type ConsumetMetaAnimeInfo, type ConsumetSource } from "@/lib/consumet";
 import { addToWatchHistory } from "@/lib/storage";
 import { Navbar } from "@/components/Navbar";
 import { VideoPlayer } from "@/components/VideoPlayer";
@@ -42,10 +42,8 @@ export function WatchPage() {
   }, [animeId]);
 
   const [anime, setAnime] = useState<AnimeMediaDetail | null>(null);
-  const [consumetAnime, setConsumetAnime] = useState<ConsumetAnimeInfo | null>(null);
+  const [consumetAnime, setConsumetAnime] = useState<ConsumetMetaAnimeInfo | null>(null);
   const [sources, setSources] = useState<ConsumetSource[]>([]);
-  const [searchResults, setSearchResults] = useState<ConsumetSearchResult[]>([]);
-  const [selectedLanguage, setSelectedLanguage] = useState<string>("SUB");
   const [loading, setLoading] = useState(true);
   const [episodeLoading, setEpisodeLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +53,6 @@ export function WatchPage() {
 
   const currentEpisode = consumetAnime?.episodes?.[selectedEpisode];
   const animeTitle = anime?.title.english ?? anime?.title.romaji ?? "Anime";
-  const normalizedAniTitle = useMemo(() => normalizeTitle(anime?.title.english ?? anime?.title.romaji ?? ""), [anime]);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,20 +64,8 @@ export function WatchPage() {
       .then(async (data) => {
         if (cancelled) return;
         setAnime(data);
-        const title = data.title.english ?? data.title.romaji;
-        const results = await searchConsumeat(title);
-        if (cancelled) return;
-        setSearchResults(results);
-        const preferredLang =
-          results.find((item) => String(item.subOrDub).toUpperCase().includes("SUB"))?.subOrDub ??
-          results[0]?.subOrDub ??
-          "SUB";
-        setSelectedLanguage(preferredLang);
-        const selected = pickBestConsumetMatch(results, normalizeTitle(title), preferredLang);
-        if (!selected) {
-          throw new Error("No streaming source found for this anime.");
-        }
-        const info = await getAnimeInfo(selected.id);
+        // Primary mapping: Consumet meta/anilist with provider=zoro.
+        const info = await getAnilistMetaInfo(Number(animeId), "zoro");
         if (cancelled) return;
         setConsumetAnime(info);
       })
@@ -100,7 +85,7 @@ export function WatchPage() {
     let cancelled = false;
     setEpisodeLoading(true);
     setError(null);
-    getEpisodeSources(currentEpisode.id)
+    getAnilistEpisodeSources(currentEpisode.id)
       .then((sources) => {
         if (cancelled) return;
         setSources(sources);
@@ -115,28 +100,6 @@ export function WatchPage() {
       cancelled = true;
     };
   }, [currentEpisode, anime, animeId, animeTitle]);
-
-  const availableLanguages = Array.from(new Set(searchResults.map((item) => item.subOrDub.toUpperCase())));
-  const handleLanguageToggle = async (nextLanguage: string) => {
-    if (nextLanguage === selectedLanguage) return;
-    setSelectedLanguage(nextLanguage);
-    setLoading(true);
-    try {
-      const result = pickBestConsumetMatch(searchResults, normalizedAniTitle, nextLanguage);
-      if (!result) throw new Error("Language option unavailable.");
-      const info = await getAnimeInfo(result.id);
-      setConsumetAnime(info);
-      setSelectedEpisode(0);
-      progressRef.current = 0;
-      await navigate({
-        to: "/watch/$animeId/$episodeNumber",
-        params: { animeId: String(animeId), episodeNumber: "1" },
-        replace: true,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleEpisodeSelect = (index: number) => {
     setSelectedEpisode(index);
@@ -170,8 +133,8 @@ export function WatchPage() {
         animeId: Number(animeId),
         animeTitle,
         animeCover: anime.coverImage.large,
-        episodeNumber: currentEpisode.number,
-        episodeTitle: currentEpisode.title ?? `Episode ${currentEpisode.number}`,
+        episodeNumber: currentEpisode.episode,
+        episodeTitle: currentEpisode.title ?? `Episode ${currentEpisode.episode}`,
         watchedAt: Date.now(),
         progress,
       });
@@ -238,28 +201,10 @@ export function WatchPage() {
             <div className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-6 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-sm text-primary">{animeTitle}</p>
-                <h1 className="mt-2 text-3xl font-bold">{episode.title ?? `Episode ${episode.number}`}</h1>
+                <h1 className="mt-2 text-3xl font-bold">{episode.title ?? `Episode ${episode.episode}`}</h1>
                 <p className="mt-2 text-sm text-muted-foreground">{stripHtml(anime.description)}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {availableLanguages.length > 1 && (
-                  <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2">
-                    {availableLanguages.map((lang) => (
-                      <button
-                        key={lang}
-                        type="button"
-                        onClick={() => handleLanguageToggle(lang)}
-                        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                          lang === selectedLanguage
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {lang}
-                      </button>
-                    ))}
-                  </div>
-                )}
                 <button
                   type="button"
                   onClick={handlePrev}
@@ -288,7 +233,7 @@ export function WatchPage() {
                 <ArrowLeft className="h-4 w-4" /> Back to anime page
               </Link>
               <span>
-                Episode {episode.number} of {consumetAnime.episodes.length}
+                Episode {episode.episode} of {consumetAnime.episodes.length}
               </span>
               <span>{anime.status.replaceAll("_", " ")}</span>
             </div>
@@ -300,41 +245,20 @@ export function WatchPage() {
                 <Movie className="h-5 w-5 text-primary" />
                 <h2 className="text-lg font-bold">Episode List</h2>
               </div>
-              <EpisodeList episodes={consumetAnime.episodes} activeIndex={selectedEpisode} onSelect={handleEpisodeSelect} />
+              <EpisodeList
+                episodes={consumetAnime.episodes.map((ep) => ({
+                  id: ep.id,
+                  number: ep.episode,
+                  url: "",
+                  title: ep.title ?? `Episode ${ep.episode}`,
+                }))}
+                activeIndex={selectedEpisode}
+                onSelect={handleEpisodeSelect}
+              />
             </div>
           </aside>
         </div>
       </main>
     </div>
   );
-}
-
-function normalizeTitle(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-function pickBestConsumetMatch(
-  results: ConsumetSearchResult[],
-  normalizedTargetTitle: string,
-  preferredLang?: string,
-) {
-  if (!results.length) return undefined;
-  const lang = preferredLang ? String(preferredLang).toUpperCase() : undefined;
-
-  const candidates = lang
-    ? results.filter((r) => String(r.subOrDub).toUpperCase() === lang)
-    : results;
-  const pool = candidates.length ? candidates : results;
-
-  const exact = pool.find((r) => normalizeTitle(r.title) === normalizedTargetTitle);
-  if (exact) return exact;
-
-  const starts = pool.find((r) => normalizeTitle(r.title).startsWith(normalizedTargetTitle));
-  if (starts) return starts;
-
-  return pool[0];
 }
