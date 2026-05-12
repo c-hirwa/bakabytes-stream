@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, ChevronRight, Maximize2, Pause, Play, RefreshCcw, Speaker, Volume2 } from "lucide-react";
+import { Maximize2, Pause, Play, RefreshCcw, Speaker, Volume2 } from "lucide-react";
 import Hls from "hls.js";
 import type { ConsumetSource } from "@/lib/consumet";
 
-const QUALITY_ORDER = ["1080p", "720p", "480p", "360p"];
+const QUALITY_ORDER = ["1080p", "720p", "480p", "360p", "default"];
 
 function formatTime(value: number) {
   const minutes = Math.floor(value / 60);
@@ -12,12 +12,14 @@ function formatTime(value: number) {
 }
 
 function getPreferredQuality(sources: ConsumetSource[]) {
-  const ordered = [...sources].sort((a, b) => {
-    const aIndex = QUALITY_ORDER.indexOf(a.quality);
-    const bIndex = QUALITY_ORDER.indexOf(b.quality);
-    return (aIndex === -1 ? QUALITY_ORDER.length : aIndex) - (bIndex === -1 ? QUALITY_ORDER.length : bIndex);
-  });
-  return ordered[0]?.quality ?? sources[0]?.quality ?? "default";
+  const withRank = sources
+    .map((s) => ({ ...s, rank: QUALITY_ORDER.indexOf(s.quality) }))
+    .sort((a, b) => {
+      const ar = a.rank === -1 ? QUALITY_ORDER.length : a.rank;
+      const br = b.rank === -1 ? QUALITY_ORDER.length : b.rank;
+      return ar - br;
+    });
+  return withRank[0]?.quality ?? sources[0]?.quality ?? "default";
 }
 
 export function VideoPlayer({
@@ -34,6 +36,7 @@ export function VideoPlayer({
   onProgress?: (progress: number) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -41,7 +44,6 @@ export function VideoPlayer({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedQuality, setSelectedQuality] = useState("default");
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
   const savedTimeKey = `anime_progress_${animeId}_${episodeNumber}`;
@@ -67,7 +69,6 @@ export function VideoPlayer({
     const video = videoRef.current;
     const saved = typeof window !== "undefined" ? window.localStorage.getItem(savedTimeKey) : null;
     const startTime = saved ? Number(saved) : 0;
-    let hls: Hls | undefined;
 
     setLoading(true);
     setError(null);
@@ -77,6 +78,14 @@ export function VideoPlayer({
       setLoading(false);
       return;
     }
+
+    // Cleanup any previous HLS instance / source
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+    video.removeAttribute("src");
+    video.load();
 
     const attachNative = () => {
       video.src = source.url;
@@ -93,7 +102,11 @@ export function VideoPlayer({
     };
 
     if (source.isM3U8 && Hls.isSupported()) {
-      hls = new Hls();
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+      });
+      hlsRef.current = hls;
       hls.loadSource(source.url);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -102,8 +115,28 @@ export function VideoPlayer({
         video.play().catch(() => {});
       });
       hls.on(Hls.Events.ERROR, (_, data) => {
-        setError(data?.details ?? "Playback failed.");
-        setLoading(false);
+        if (!data) return;
+        if (data.fatal) {
+          // Try standard recovery strategies before surfacing the error
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            try {
+              hls.startLoad();
+              return;
+            } catch {
+              // fallthrough
+            }
+          }
+          if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+            try {
+              hls.recoverMediaError();
+              return;
+            } catch {
+              // fallthrough
+            }
+          }
+          setError(data?.details ?? "Playback failed.");
+          setLoading(false);
+        }
       });
     } else {
       attachNative();
@@ -111,9 +144,9 @@ export function VideoPlayer({
     }
 
     return () => {
-      if (hls) {
-        hls.destroy();
-        hls = undefined;
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
       }
     };
   }, [source, retryKey, savedTimeKey]);
@@ -177,10 +210,8 @@ export function VideoPlayer({
     if (!container) return;
     if (!document.fullscreenElement) {
       container.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
     } else {
       document.exitFullscreen().catch(() => {});
-      setIsFullscreen(false);
     }
   };
 

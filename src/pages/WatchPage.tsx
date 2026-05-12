@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, Play, Movie } from "lucide-react";
-import { Link, useParams } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Movie } from "lucide-react";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { getAnimeById, type AnimeMediaDetail } from "@/lib/anilist";
 import { searchConsumeat, getAnimeInfo, getEpisodeSources, type ConsumetAnimeInfo, type ConsumetSource, type ConsumetSearchResult } from "@/lib/consumet";
 import { addToWatchHistory } from "@/lib/storage";
@@ -15,25 +15,53 @@ function stripHtml(html: string | null) {
 }
 
 export function WatchPage() {
-  const { animeId, episodeIndex } = useParams();
-  const epIndex = Number(episodeIndex ?? "0");
+  const params = useParams({ strict: false }) as { animeId?: string; episodeIndex?: string; episodeNumber?: string };
+  const navigate = useNavigate({ from: "/watch/$animeId/$episodeNumber" as any });
+
+  const animeId = params.animeId ?? "";
+  // New route is 1-based episodeNumber. Old route is 0-based episodeIndex.
+  const routeEpisodeNumber = params.episodeNumber != null ? Number(params.episodeNumber) : undefined;
+  const legacyEpisodeIndex = params.episodeIndex != null ? Number(params.episodeIndex) : undefined;
+  const initialEpisodeIndex = Number.isFinite(routeEpisodeNumber)
+    ? Math.max(0, Number(routeEpisodeNumber) - 1)
+    : Number.isFinite(legacyEpisodeIndex)
+      ? Math.max(0, Number(legacyEpisodeIndex))
+      : 0;
+
+  // If user hits the legacy route, normalize URL to new 1-based route.
+  useEffect(() => {
+    if (!animeId) return;
+    if (params.episodeNumber != null) return;
+    const nextEpisodeNumber = String(initialEpisodeIndex + 1);
+    void navigate({
+      to: "/watch/$animeId/$episodeNumber",
+      params: { animeId: String(animeId), episodeNumber: nextEpisodeNumber },
+      replace: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animeId]);
+
   const [anime, setAnime] = useState<AnimeMediaDetail | null>(null);
   const [consumetAnime, setConsumetAnime] = useState<ConsumetAnimeInfo | null>(null);
   const [sources, setSources] = useState<ConsumetSource[]>([]);
   const [searchResults, setSearchResults] = useState<ConsumetSearchResult[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<string>("SUB");
   const [loading, setLoading] = useState(true);
+  const [episodeLoading, setEpisodeLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedEpisode, setSelectedEpisode] = useState<number>(epIndex);
+  const [selectedEpisode, setSelectedEpisode] = useState<number>(initialEpisodeIndex);
+
+  const progressRef = useRef(0);
 
   const currentEpisode = consumetAnime?.episodes?.[selectedEpisode];
   const animeTitle = anime?.title.english ?? anime?.title.romaji ?? "Anime";
+  const normalizedAniTitle = useMemo(() => normalizeTitle(anime?.title.english ?? anime?.title.romaji ?? ""), [anime]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    setSelectedEpisode(epIndex);
+    setSelectedEpisode(initialEpisodeIndex);
 
     getAnimeById(Number(animeId))
       .then(async (data) => {
@@ -43,9 +71,12 @@ export function WatchPage() {
         const results = await searchConsumeat(title);
         if (cancelled) return;
         setSearchResults(results);
-        const preferredLang = results.find((item) => item.subOrDub.toUpperCase().includes("SUB"))?.subOrDub ?? results[0]?.subOrDub ?? "SUB";
+        const preferredLang =
+          results.find((item) => String(item.subOrDub).toUpperCase().includes("SUB"))?.subOrDub ??
+          results[0]?.subOrDub ??
+          "SUB";
         setSelectedLanguage(preferredLang);
-        const selected = results.find((item) => item.subOrDub === preferredLang) ?? results[0];
+        const selected = pickBestConsumetMatch(results, normalizeTitle(title), preferredLang);
         if (!selected) {
           throw new Error("No streaming source found for this anime.");
         }
@@ -62,27 +93,17 @@ export function WatchPage() {
     return () => {
       cancelled = true;
     };
-  }, [animeId, epIndex]);
+  }, [animeId, initialEpisodeIndex]);
 
   useEffect(() => {
     if (!currentEpisode) return;
     let cancelled = false;
+    setEpisodeLoading(true);
     setError(null);
     getEpisodeSources(currentEpisode.id)
       .then((sources) => {
-        if (!cancelled) return;
+        if (cancelled) return;
         setSources(sources);
-        if (anime) {
-          addToWatchHistory({
-            animeId: Number(animeId),
-            animeTitle,
-            animeCover: anime.coverImage.large,
-            episodeNumber: currentEpisode.number,
-            episodeTitle: currentEpisode.title ?? `Episode ${currentEpisode.number}`,
-            watchedAt: Date.now(),
-            progress: currentEpisode.number,
-          });
-        }
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load episode source.");
@@ -101,11 +122,17 @@ export function WatchPage() {
     setSelectedLanguage(nextLanguage);
     setLoading(true);
     try {
-      const result = searchResults.find((item) => item.subOrDub.toUpperCase() === nextLanguage);
+      const result = pickBestConsumetMatch(searchResults, normalizedAniTitle, nextLanguage);
       if (!result) throw new Error("Language option unavailable.");
       const info = await getAnimeInfo(result.id);
       setConsumetAnime(info);
       setSelectedEpisode(0);
+      progressRef.current = 0;
+      await navigate({
+        to: "/watch/$animeId/$episodeNumber",
+        params: { animeId: String(animeId), episodeNumber: "1" },
+        replace: true,
+      });
     } finally {
       setLoading(false);
     }
@@ -113,8 +140,12 @@ export function WatchPage() {
 
   const handleEpisodeSelect = (index: number) => {
     setSelectedEpisode(index);
-    window.history.pushState({}, "", `/watch/${animeId}/${index}`);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    progressRef.current = 0;
+    void navigate({
+      to: "/watch/$animeId/$episodeNumber",
+      params: { animeId: String(animeId), episodeNumber: String(index + 1) },
+      replace: false,
+    });
   };
 
   const handleNext = () => {
@@ -128,6 +159,25 @@ export function WatchPage() {
       handleEpisodeSelect(selectedEpisode - 1);
     }
   };
+
+  const handlePlayerProgress = useCallback(
+    (progress: number) => {
+      if (!anime || !currentEpisode) return;
+      // Throttle writes: only update when progress moves meaningfully
+      if (Math.abs(progress - progressRef.current) < 0.02 && progress !== 0) return;
+      progressRef.current = progress;
+      addToWatchHistory({
+        animeId: Number(animeId),
+        animeTitle,
+        animeCover: anime.coverImage.large,
+        episodeNumber: currentEpisode.number,
+        episodeTitle: currentEpisode.title ?? `Episode ${currentEpisode.number}`,
+        watchedAt: Date.now(),
+        progress,
+      });
+    },
+    [anime, animeId, animeTitle, currentEpisode],
+  );
 
   if (loading) {
     return (
@@ -176,8 +226,13 @@ export function WatchPage() {
                 animeId={animeId}
                 episodeNumber={selectedEpisode + 1}
                 onEnded={handleNext}
-                onProgress={() => undefined}
+                onProgress={handlePlayerProgress}
               />
+              {episodeLoading && (
+                <div className="mt-4 rounded-2xl border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+                  Loading episode sources…
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-6 md:flex-row md:items-center md:justify-between">
@@ -252,4 +307,34 @@ export function WatchPage() {
       </main>
     </div>
   );
+}
+
+function normalizeTitle(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function pickBestConsumetMatch(
+  results: ConsumetSearchResult[],
+  normalizedTargetTitle: string,
+  preferredLang?: string,
+) {
+  if (!results.length) return undefined;
+  const lang = preferredLang ? String(preferredLang).toUpperCase() : undefined;
+
+  const candidates = lang
+    ? results.filter((r) => String(r.subOrDub).toUpperCase() === lang)
+    : results;
+  const pool = candidates.length ? candidates : results;
+
+  const exact = pool.find((r) => normalizeTitle(r.title) === normalizedTargetTitle);
+  if (exact) return exact;
+
+  const starts = pool.find((r) => normalizeTitle(r.title).startsWith(normalizedTargetTitle));
+  if (starts) return starts;
+
+  return pool[0];
 }

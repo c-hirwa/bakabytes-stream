@@ -151,8 +151,8 @@ export function AnimePage() {
                   <Bookmark className="h-4 w-4" /> {favorite ? "In Favorites" : "Add to Favorites"}
                 </button>
                 <Link
-                  to="/watch/$animeId/$episodeIndex"
-                  params={{ animeId: String(anime.id), episodeIndex: "0" }}
+                  to="/watch/$animeId/$episodeNumber"
+                  params={{ animeId: String(anime.id), episodeNumber: "1" }}
                   className="inline-flex items-center gap-2 rounded-full bg-primary/95 px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary"
                 >
                   <Play className="h-4 w-4" /> Watch Now
