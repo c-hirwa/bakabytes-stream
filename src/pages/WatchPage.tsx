@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, Clapperboard } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Movie } from "lucide-react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { getAnimeById, type AnimeMediaDetail } from "@/lib/anilist";
 import { getAnilistEpisodeSources, getAnilistMetaInfo, type ConsumetMetaAnimeInfo, type ConsumetSource } from "@/lib/consumet";
@@ -242,7 +242,7 @@ export function WatchPage() {
           <aside className="space-y-4">
             <div className="rounded-3xl border border-border bg-card p-6">
               <div className="mb-4 flex items-center gap-3">
-                <Clapperboard className="h-5 w-5 text-primary" />
+                <Movie className="h-5 w-5 text-primary" />
                 <h2 className="text-lg font-bold">Episode List</h2>
               </div>
               <EpisodeList
